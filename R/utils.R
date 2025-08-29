@@ -666,3 +666,16 @@ webchem_sleep <- function(time = NULL,
 
   Sys.sleep(time)
 }
+
+#' Retrieve path to local database
+#' @param db character; database name. Currently only "chembl" is supported.
+#' @return Path to local database.
+#' @export
+db_path <- function(db) {
+  db <- match.arg(db, choices = "chembl")
+  file <- switch(
+    db,
+    chembl = "chembl_35.db"
+  )
+  file.path(wc_cache$cache_path_get(), file)
+}
