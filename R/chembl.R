@@ -700,6 +700,89 @@ format_chembl <- function(cont) {
   return(cont)
 }
 
+get_chembl_url <- function(version) {
+  if (as.numeric(version) <= 20) {
+    stop("Version not supported. Try a more recent version.")
+  } else if (as.numeric(version) %in% c(22, 24)) {
+    url <- paste0(
+      "https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_",
+      version, "/archived/chembl_", version, "_sqlite.tar.gz"
+    )
+  } else {
+    if (as.numeric(version)%%1 != 0) version <- gsub("\\.", "_", version)
+    url <- paste0(
+      "https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_",
+      version, "/chembl_", version, "_sqlite.tar.gz"
+    )
+  }
+  if (url_exists(url)) {
+    return(url)
+  } else {
+    return(NA)
+  }
+}
+
+db_download_chembl <- function(
+  version = "35",
+  verbose = TRUE,
+  overwrite = FALSE
+  ) {
+  # input validation
+  assert(version, "character")
+  assert(verbose, "logical")
+  assert(overwrite, "logical")
+  # paths
+  db_url <- get_chembl_url(version)
+  db_path <- file.path(
+    wc_cache$cache_path_get(),
+    "chembl/chembl_",
+    version,
+    "/chembl/chembl_",
+    version,
+    ".sqlite.tar.gz"
+  )
+  db_path_file <- file.path(
+    wc_cache$cache_path_get(),
+    "chembl/chembl_",
+    version,
+    "/chembl/chembl_",
+    version)
+  final_file <- file.path(
+    wc_cache$cache_path_get(),
+    "chembl/chembl_",
+    version,
+    "/chembl/chembl_",
+    version,
+    ".db"
+  )
+  if (file.exists(final_file) && !overwrite) {
+    if (verbose) message("Database already exists. Returning local database.")
+    return(final_file)
+  }
+  unlink(final_file, force = TRUE)
+
+  # make home dir if not already present
+  wc_cache$mkdir()
+  # download data
+  if (verbose) message("Downloading database. ", appendLF = FALSE)
+  curl::curl_download(db_url, db_path, quiet = TRUE)
+  # unzip
+  if (verbose) message("Unzipping. ")
+  utils::untar(db_path, exdir = db_path_file)
+  # get file path
+  dirs <- list.dirs(db_path_file, full.names = TRUE)
+  dir_date <- dirs[ dirs != db_path_file ]
+  sql_path <- list.files(dir_date, pattern = ".sqlite", full.names = TRUE)
+  # move database
+  file.rename(sql_path, final_file)
+  # cleanup
+  mssg(verbose, 'cleaning up...')
+  unlink(db_path)
+  unlink(db_path_file, recursive = TRUE)
+  # return path
+  return(final_file)
+}
+
 #' Connect local ChEMBL database as ddplyr src object
 #'
 #' @param version character; version of the database. Either "latest" (default)
