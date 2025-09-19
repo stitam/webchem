@@ -574,6 +574,25 @@ matcher <-
     }
   }
 
+#' Query local database using SQL
+#'
+#' Execute an SQL query on a database and retrieve a data frame.
+#' @param src src; A ddplyr `src` object, result of calling e.g. [src_chembl()].
+#' @param query character; An SQL query.
+#' @param ... Further arguments passed on to [dplyr::tbl()]
+#' @return A tibble with query results.
+#' @note Inspired by \url{https://github.com/ropensci/taxizedb}
+#' @examples \dontrun{
+#' # Connect local ChEMBL database as ddplyr src object
+#' src <- src_chembl()
+#' # Retrieve first 5 rows from the "atc_classification" table
+#' src |> sql_collect("select * from atc_classification limit 5")
+#' }
+#' @noRd
+sql_collect <- function(src, query, ...) {
+  dplyr::tbl(src, dplyr::sql(query), ...) |> dplyr::collect()
+}
+
 #' Check if an url exists
 #'
 #' @param url url
