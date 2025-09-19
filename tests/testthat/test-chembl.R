@@ -207,6 +207,23 @@ test_that("chembl_atc_classes()", {
   expect_equal(o3m[2], "Service not available. Returning NA.")
 })
 
+test_that("src_chembl()", {
+  skip_on_cran()
+  skip_on_ci()
+  skip_on_covr()
+
+  # connect to local database if it exists
+  con <- src_chembl(version = "latest")
+  expect_true(inherits(con, c("src_SQLiteConnection")))
+
+  # fail with an informative message otherwise
+  msg <- capture_error(src_chembl(version = "20"))
+  expect_equal(
+    msg$message,
+    "Database not found. Use db_download_chembl() to download the database."
+  )
+})
+
 test_that("validate_chembl_version()", {
   expect_equal(validate_chembl_version()$version, "35")
   expect_equal(validate_chembl_version("latest")$version, "35")

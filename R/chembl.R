@@ -700,6 +700,38 @@ format_chembl <- function(cont) {
   return(cont)
 }
 
+#' Connect local ChEMBL database as ddplyr src object
+#'
+#' @param version character; version of the database. Either "latest" (default)
+#' or a specific version number, e.g. "30".
+#' @param ... Further args passed on to [DBI::dbConnect()]
+#' @return an src object
+#' @references Inspired by \url{https://github.com/ropensci/taxizedb}
+#' @examples
+#' \dontrun{
+#'   src <- src_chembl()
+#' }
+#' @noRd
+src_chembl <- function(version = "latest", ...) {
+  if (!inherits(version, "chembl_version")) {
+    version <- validate_chembl_version(version = version)
+  }
+  dir_path <- file.path(
+    wc_cache$cache_path_get(),
+    "chembl",
+    paste0("chembl_", version$version_path)
+  ) |> path.expand()
+  file_path <- chembl_files(version = version) |>
+    dplyr::filter(type == "sqlite") |>
+    dplyr::pull(file)
+  full_path <- file.path(dir_path, file_path)
+  if (!file.exists(full_path)) {
+    stop("Database not found. Use db_download_chembl() to download the database.")
+  }
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = full_path, ...)
+  dbplyr::src_dbi(con, auto_disconnect = TRUE)
+}
+
 #' Validate ChEMBL version
 #'
 #' @description Validates the provided ChEMBL version. If "latest" (default),
