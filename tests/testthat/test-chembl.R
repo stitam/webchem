@@ -207,6 +207,15 @@ test_that("chembl_atc_classes()", {
   expect_equal(o3m[2], "Service not available. Returning NA.")
 })
 
+test_that("sql_collect()", {
+  src <- src_chembl()
+  df <- src |> sql_collect("select * from atc_classification limit 5")
+
+  expect_true(inherits(df, "data.frame"))
+  expect_equal(nrow(df), 5)
+  expect_equal(names(df)[1], "who_name")
+})
+
 test_that("src_chembl()", {
   skip_on_cran()
   skip_on_ci()
