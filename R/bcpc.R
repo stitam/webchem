@@ -176,6 +176,7 @@ bcpc_query <- function(query, from = c("name", "cas"),
 #' This function builds an index of the BCPC Compendium of Pesticides
 #' and saves it to \code{\link{tempdir}}.
 #' @import xml2
+#' @importFrom rlang .data
 #'
 #' @param verbose logical; print message during processing to console?
 #' @param force_build logical; force building a new index?
@@ -265,6 +266,32 @@ build_bcpc_idx <- function(verbose = getOption("verbose"), force_build = FALSE) 
 
       # Eliminate duplicates
       bcpc_idx <- bcpc_idx |> dplyr::distinct()
+
+      # Integrity check - each non-na cas should have a single link
+      linkcounts <- bcpc_idx |>
+        dplyr::filter(!is.na(.data$names)) |>
+        dplyr::group_by(.data$names) |>
+        dplyr::summarise(count = length(unique(.data$links))) |>
+        dplyr::pull(.data$count)
+
+      if (any(linkcounts > 1)) {
+        if (verbose) {
+          warning("Some CAS Registry Numbers have multiple links.")
+        }
+      }
+
+      # Integrity check - each non-na name should have a single link
+      lncounts <- bcpc_idx |>
+        dplyr::filter(!is.na(.data$linknames)) |>
+        dplyr::group_by(.data$linknames) |>
+        dplyr::summarise(count = length(unique(.data$links))) |>
+        dplyr::pull(.data$count)
+
+      if (any(lncounts > 1)) {
+        if (verbose) {
+          warning("Some names have multiple links.")
+        }
+      }
 
       attr(bcpc_idx, "date") <- Sys.Date()
       save(bcpc_idx, file = paste0(tempdir(), "/data/bcpc_idx.rda"))
