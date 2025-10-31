@@ -262,6 +262,10 @@ build_bcpc_idx <- function(verbose = getOption("verbose"), force_build = FALSE) 
       Encoding(ln) <- "latin1"
       ln <- iconv(ln, from = "latin1", to = "ASCII", sub = "")
       bcpc_idx$linknames <- ln
+
+      # Eliminate duplicates
+      bcpc_idx <- bcpc_idx |> dplyr::distinct()
+
       attr(bcpc_idx, "date") <- Sys.Date()
       save(bcpc_idx, file = paste0(tempdir(), "/data/bcpc_idx.rda"))
     }
