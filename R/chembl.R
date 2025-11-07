@@ -877,3 +877,31 @@ chembl_example_query <- function(resource) {
   }
   example_queries[[resource]]
 }
+
+#' Update ChEMBL API schema database
+#'
+#' Query each ChEMBL resource and check if schema matches the latest API schema
+#' within webchem's database. If not, add the new schema with the current date.
+#' @noRd
+update_chembl_api_schema <- function() {
+  resources <- chembl_resources()
+  resources <- resources[!resources %in% c("image", "status")]
+  new_schema <- data.frame()
+  for (i in resources) {
+    new_schema <- dplyr::bind_rows(new_schema, get_chembl_api_schema(i))
+  }
+  data(chembl_schema)
+  latest_schema <- schema |> dplyr::filter(date == max(date))
+  schema_changed <- function(old, new) {
+    old2 <- old |> dplyr::select(-date)
+    new2 <- new |> dplyr::select(-date)
+    !identical(old2, new2)
+  }
+  if (schema_changed(latest_schema, new_schema)) {
+    schema <- latest_schema |> dplyr::bind_rows(new_schema)
+    save(schema, file = "data/chembl_schema.rda")
+    message("Updated.")
+  } else {
+    message("No change.")
+  }
+}
