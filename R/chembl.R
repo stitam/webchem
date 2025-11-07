@@ -886,10 +886,28 @@ chembl_example_query <- function(resource) {
 update_chembl_ws_schema <- function() {
   resources <- chembl_resources()
   resources <- resources[!resources %in% c("image", "status")]
-  schema <- read.csv("inst/extdata/chembl_schema.tsv", sep = "\t")
+  schema_file <- "inst/extdata/chembl_schema.tsv"
+  new_schema <- dplyr::bind_rows(lapply(resources, get_chembl_ws_schema))
+  if (!file.exists(schema_file)) {
+    new_schema <- new_schema |>
+      dplyr::mutate(
+        date = Sys.Date(),
+        status = "active"
+      ) |>
+      dplyr::relocate(date, status)
+    write.table(
+      new_schema,
+      file = schema_file,
+      sep = "\t",
+      row.names = FALSE,
+      quote = FALSE
+    )
+    message("Schema file created.")
+    return(invisible(NULL))
+  }
+  schema <- read.csv(schema_file, sep = "\t")
   schema$date <- as.Date(schema$date)
   latest_schema <- schema |> dplyr::filter(date == max(date))
-  new_schema <- dplyr::bind_rows(lapply(resources, get_chembl_ws_schema))
   old_nodate <- latest_schema |> dplyr::select(-date, -status)
   new_nodate <- new_schema |> dplyr::select(-date)
   changed <- dplyr::anti_join(new_nodate, old_nodate, by = c(
@@ -922,7 +940,7 @@ update_chembl_ws_schema <- function() {
   if (updated) {
     write.table(
       schema,
-      file = "inst/extdata/chembl_schema.tsv",
+      file = schema_file,
       sep = "\t",
       row.names = FALSE,
       quote = FALSE
