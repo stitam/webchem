@@ -887,7 +887,17 @@ update_chembl_ws_schema <- function() {
   resources <- chembl_resources()
   resources <- resources[!resources %in% c("image", "status")]
   schema_file <- "inst/extdata/chembl_schema.tsv"
-  new_schema <- dplyr::bind_rows(lapply(resources, get_chembl_ws_schema))
+  new_schema <- dplyr::bind_rows(
+    lapply(resources, function(resource) {
+      tryCatch(
+        get_chembl_ws_schema(resource),
+        error = function(e) {
+          message(paste("Failed for resource:", resource))
+          return(tibble::tibble(resource = resource))
+        }
+      )
+    })
+  )
   if (!file.exists(schema_file)) {
     new_schema <- new_schema |>
       dplyr::mutate(
@@ -950,4 +960,3 @@ update_chembl_ws_schema <- function() {
     message("No change.")
   }
 }
-
