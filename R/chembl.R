@@ -883,24 +883,31 @@ chembl_example_query <- function(resource) {
 #' Query each ChEMBL resource and check if schema matches the latest API schema
 #' within webchem's database. If not, add the new schema with the current date.
 #' @noRd
-update_chembl_api_schema <- function() {
+update_chembl_ws_schema <- function() {
   resources <- chembl_resources()
   resources <- resources[!resources %in% c("image", "status")]
-  new_schema <- data.frame()
-  for (i in resources) {
-    new_schema <- dplyr::bind_rows(new_schema, get_chembl_api_schema(i))
-  }
-  data(chembl_schema)
+  schema <- read.csv("inst/extdata/chembl_schema.tsv", sep = "\t")
+  schema$date <- as.Date(schema$date)
   latest_schema <- schema |> dplyr::filter(date == max(date))
-  schema_changed <- function(old, new) {
-    old2 <- old |> dplyr::select(-date)
-    new2 <- new |> dplyr::select(-date)
-    !identical(old2, new2)
-  }
-  if (schema_changed(latest_schema, new_schema)) {
-    schema <- latest_schema |> dplyr::bind_rows(new_schema)
-    save(schema, file = "data/chembl_schema.rda")
-    message("Updated.")
+  new_schema <- dplyr::bind_rows(lapply(resources, get_chembl_ws_schema))
+  old_nodate <- latest_schema |> dplyr::select(-date)
+  new_nodate <- new_schema   |> dplyr::select(-date)
+  changed <- dplyr::anti_join(new_nodate, old_nodate, by = c(
+    "resource", "field", "class", "parent"
+  ))
+  if (nrow(changed) > 0) {
+    changed <- changed |>
+      dplyr::mutate(date = Sys.Date()) |>
+      dplyr::relocate(date)
+    schema <- dplyr::bind_rows(schema, changed)
+    write.table(
+      schema,
+      file = "inst/extdata/chembl_schema.tsv",
+      sep = "\t",
+      row.names = FALSE,
+      quote = FALSE
+    )
+    message("Updated TSV. Run data-raw/make_chembl_schema.R to rebuild .rda")
   } else {
     message("No change.")
   }
