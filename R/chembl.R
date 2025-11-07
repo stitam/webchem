@@ -890,16 +890,36 @@ update_chembl_ws_schema <- function() {
   schema$date <- as.Date(schema$date)
   latest_schema <- schema |> dplyr::filter(date == max(date))
   new_schema <- dplyr::bind_rows(lapply(resources, get_chembl_ws_schema))
-  old_nodate <- latest_schema |> dplyr::select(-date)
-  new_nodate <- new_schema   |> dplyr::select(-date)
+  old_nodate <- latest_schema |> dplyr::select(-date, -status)
+  new_nodate <- new_schema |> dplyr::select(-date)
   changed <- dplyr::anti_join(new_nodate, old_nodate, by = c(
     "resource", "field", "class", "parent"
   ))
+  removed <- dplyr::anti_join(old_nodate, new_nodate, by = c(
+    "resource", "field", "class", "parent"
+  ))
+  updated <- FALSE
   if (nrow(changed) > 0) {
     changed <- changed |>
-      dplyr::mutate(date = Sys.Date()) |>
-      dplyr::relocate(date)
+      dplyr::mutate(
+        date = Sys.Date(),
+        status = "active"
+      ) |>
+      dplyr::relocate(date, status)
     schema <- dplyr::bind_rows(schema, changed)
+    updated <- TRUE
+  }
+  if (nrow(removed) > 0) {
+    removed <- removed |>
+      dplyr::mutate(
+        date = Sys.Date(),
+        status = "removed"
+      ) |>
+      dplyr::relocate(date, status)
+    schema <- dplyr::bind_rows(schema, removed)
+    updated <- TRUE
+  }
+  if (updated) {
     write.table(
       schema,
       file = "inst/extdata/chembl_schema.tsv",
@@ -912,3 +932,4 @@ update_chembl_ws_schema <- function() {
     message("No change.")
   }
 }
+
